@@ -48,11 +48,23 @@
 
   <script src="dist/chunmde.bundle.min.js"></script>
   <script>
-    let editor = new ChunMDE('editor-container', {
+    const { createChunEditor, createImageUploadPlugin } = Chun
+    
+    const imageUploadPlugin = createImageUploadPlugin({
+      imageUploadUrl: "", 
+      imageFormats: ["image/jpg", "image/jpeg", "image/gif", "image/png", "image/bmp", "image/webp"],
+    })
+
+    const editor = createChunEditor({
       doc: initialContent.value,
       lineWrapping: true,
       indentWithTab: true,
+      toolbar: true,
     })
+    .use(imageUploadPlugin)
+    .mount("editor-container")
+
+    console.log(editor)
   </script>
 
 </body>
