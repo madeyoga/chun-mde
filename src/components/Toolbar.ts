@@ -17,7 +17,7 @@ export class Toolbar {
   public buttonActions: ToolbarButton[]
   public dom: Element
 
-  constructor(editor: EditorView) {
+  constructor(editor: EditorView, toolbarItems: ((editor: EditorView) => HTMLElement)[] = []) {
     this.buttonActions = [
       {
         text: "Add heading text",
@@ -77,6 +77,10 @@ export class Toolbar {
       buttonElement.setAttribute("type", "button")
   
       toolbarElement.appendChild(buttonElement)
+    }
+
+    for (let createToolbarItem of toolbarItems) {
+      toolbarElement.appendChild(createToolbarItem(editor))
     }
 
     this.dom = toolbarElement

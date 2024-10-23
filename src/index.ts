@@ -1,6 +1,6 @@
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown"
 import { EditorState, EditorStateConfig } from '@codemirror/state'
-import { keymap, ViewUpdate, EditorView } from '@codemirror/view'
+import { keymap, ViewUpdate, EditorView, KeyBinding } from '@codemirror/view'
 import { basicSetup } from 'codemirror'
 import { indentWithTab } from "@codemirror/commands"
 import { italicKeyBinding } from './commands/Italic'
@@ -10,6 +10,8 @@ import { linkKeyBinding } from "./commands/Link"
 import { quoteKeyBinding } from "./commands/Quote"
 import { ulKeyBinding } from "./commands/BulletedList"
 import { Toolbar } from "./components/Toolbar"
+import IEditorPlugin from "./plugins/IEditorPlugin"
+import { createImageUploadPlugin } from "./plugins/ImageUpload"
 
 interface ChunInterface {
   dom: Element,
@@ -20,12 +22,62 @@ interface ChunInterface {
 
 interface ChunConfig extends EditorStateConfig {
   onUpdateListener?: (update: ViewUpdate) => void,
-  indentWithTab?: boolean,
-  lineWrapping?: boolean,
+  toolbar: boolean,
+  indentWithTab: boolean,
+  lineWrapping: boolean,
+  toolbarItems: ((editor: EditorView) => HTMLElement)[],
 }
 
-function ChunMDE(this: ChunInterface, containerId: string, customConfig?: ChunConfig) {
+const ChunMDE = function ChunMDE(this: ChunInterface, containerId: string, customConfig: ChunConfig = {
+  doc: "",
+  toolbar: true,
+  indentWithTab: true,
+  lineWrapping: false,
+  toolbarItems: []
+}) {
   const parentElement = document.getElementById(containerId) as Element
+
+  const config: EditorStateConfig = {
+    doc: customConfig.doc,
+    extensions: customConfig.extensions,
+  }
+
+  /** CodeMirror6's EditorView */
+  const editorView = new EditorView({
+    state: EditorState.create(config)
+  })
+
+  parentElement.className += " chunmde-container"
+
+  // toolbar
+  if (customConfig.toolbar) {
+    const toolbar = new Toolbar(editorView, customConfig.toolbarItems)
+    parentElement.appendChild(toolbar.dom)
+    this.toolbar = toolbar
+  }
+  parentElement.appendChild(editorView.dom)
+
+  /** Shortcut to get the editor value */
+  this.getValue = () => {
+    return editorView.state.doc.toString()
+  }
+
+  this.dom = parentElement
+  this.editor = editorView
+} as any as { new (containerId: string, customConfig?: ChunConfig): ChunInterface; }
+
+interface IEditorBuilder {
+  use: (plugin: IEditorPlugin) => IEditorBuilder;
+  mount: (selector: string) => void;
+}
+
+export function createChunEditor(customConfig: ChunConfig = {
+  doc: "",
+  toolbar: true,
+  indentWithTab: true,
+  lineWrapping: false,
+  toolbarItems: [],
+}): IEditorBuilder {
 
   const defaultKeybinds = [
     italicKeyBinding,
@@ -42,53 +94,58 @@ function ChunMDE(this: ChunInterface, containerId: string, customConfig?: ChunCo
     basicSetup,
   ]
 
-  let config: EditorStateConfig = {
-    doc: "Start writing!",
-    extensions: defaultExtensions,
+  const keybinds: KeyBinding[] = []
+  const toolbarItemDelegates: ((editor: EditorView) => HTMLButtonElement)[] = []
+
+  return {
+    use(plugin) {
+      if (plugin.keybind) {
+        keybinds.push(plugin.keybind)
+      }
+
+      if (plugin.createToolbarItem) {
+        toolbarItemDelegates.push(plugin.createToolbarItem)
+      }
+
+      return this
+    },
+    mount(selector) {
+
+      if (customConfig.onUpdateListener) {
+        defaultExtensions.push(EditorView.updateListener.of(customConfig.onUpdateListener!))
+      }
+      if (customConfig.lineWrapping) {
+        defaultExtensions.push(EditorView.lineWrapping)
+      }
+      if (customConfig.indentWithTab) {
+        keybinds.push(indentWithTab)
+      }
+
+      defaultExtensions.push(keymap.of(keybinds))
+      customConfig.extensions = defaultExtensions
+      customConfig.toolbarItems = toolbarItemDelegates
+
+      return new ChunMDE(selector, customConfig)
+    },
   }
+}
 
-  if (customConfig) {
-    if (customConfig.onUpdateListener) {
-      defaultExtensions.push(EditorView.updateListener.of(customConfig.onUpdateListener!))
-    }
-    if (customConfig.lineWrapping) {
-      defaultExtensions.push(EditorView.lineWrapping)
-    }
-    if (customConfig.indentWithTab) {
-      defaultExtensions.push(keymap.of([indentWithTab]))
-    }
-    config.doc = customConfig.doc ? customConfig.doc : config.doc
-    config.extensions = customConfig.extensions ? customConfig.extensions : defaultExtensions
-  }
-
-  /** CodeMirror6's EditorView */
-  const editorView = new EditorView({
-    // parent: parentElement,
-    state: EditorState.create(config)
-  })
-
-  parentElement.className += " chunmde-container"
-
-  // toolbar
-  const toolbar = new Toolbar(editorView)
-
-  parentElement.appendChild(toolbar.dom)
-  parentElement.appendChild(editorView.dom)
-
-  /** Shortcut to get the editor value */
-  this.getValue = () => {
-    return editorView.state.doc.toString()
-  }
-
-  this.dom = parentElement
-  this.toolbar = toolbar
-  this.editor = editorView
+interface IGlobalChunEditor {
+  createChunEditor: () => IEditorBuilder,
+  createImageUploadPlugin: (imageUploadUrl: string, imageFormats: string[]) => IEditorPlugin,
 }
 
 declare global {
-  interface Window { ChunMDE: typeof ChunMDE; }
+  interface Window { ChunMDE: typeof ChunMDE; Chun: IGlobalChunEditor }
 }
 
-window.ChunMDE = ChunMDE;
+const Chun = { 
+  createChunEditor, 
+  createImageUploadPlugin,
+}
 
-export default ChunMDE;
+window.ChunMDE = ChunMDE
+window.Chun = Chun;
+
+export default Chun;
+
