@@ -33,6 +33,8 @@ export const createImageUploadPlugin: (config: any) => IEditorPlugin = (
   config: any = {
     imageUploadUrl: "",
     imageFormats: ["image/jpg", "image/jpeg", "image/gif", "image/png", "image/bmp", "image/webp"],
+    csrfToken: "",
+    csrfFieldName: "",
   }
 ) => {
 
@@ -48,8 +50,12 @@ export const createImageUploadPlugin: (config: any) => IEditorPlugin = (
         const files = (event.target as HTMLInputElement).files
         if (files && files[0]) {
           const formData = new FormData();
-          
+
           formData.append('image', files[0]);
+
+          if (config.csrfFieldName && config.csrfToken) {
+            formData.append(config.csrfFieldName, config.csrfToken)
+          }
 
           const resp = await fetch(config.imageUploadUrl, {
             method: "POST",
