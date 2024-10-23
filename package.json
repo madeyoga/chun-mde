@@ -1,6 +1,6 @@
 {
   "name": "chunmde",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Markdown editor based on codemirror 6",
   "main": "dist/chunmde.bundle.js",
   "type": "module",
