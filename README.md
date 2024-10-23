@@ -16,6 +16,8 @@ Markdown editor based on [codemirror6](https://codemirror.net/)
   - code <Ctrl+e>
   - link <Ctrl+k>
   - Unordered list <Ctrl+Shift+8>
+- Plugins:
+  - Image upload
 
 ## Usage
 
@@ -32,9 +34,23 @@ Markdown editor based on [codemirror6](https://codemirror.net/)
   <div id="editor-container"></div>
   <script src="https://cdn.jsdelivr.net/npm/chunmde@x.y.z/dist/chunmde.bundle.min.js"></script>
   <script>
-    const editor = new ChunMDE('editor-container')
-    const value = editor.getValue()
-    console.log(value)
+    const { createChunEditor, createImageUploadPlugin } = Chun
+    
+    const imageUploadPlugin = createImageUploadPlugin({
+      imageUploadUrl: "", 
+      imageFormats: ["image/jpg", "image/jpeg", "image/gif", "image/png", "image/bmp", "image/webp"],
+    })
+
+    const editor = createChunEditor({
+      doc: initialContent.value,
+      lineWrapping: true,
+      indentWithTab: true,
+      toolbar: true,
+    })
+    .use(imageUploadPlugin)
+    .mount("editor-container")
+
+    console.log(editor.getValue())
   </script>
 </body>
 </html>
